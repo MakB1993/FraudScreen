@@ -6,6 +6,8 @@ from backend import models
 from backend.database import get_db
 from backend.schemas import TransactionCreate, TransactionResponse, TransactionUpdate
 
+from backend.services.fraud_engine import evaluate_transaction
+
 router = APIRouter(
     prefix="/transactions",
     tags=["Transactions"],
@@ -30,8 +32,21 @@ def create_transaction(
     db.add(db_transaction)
 
     try:
-        db.commit()
+        # db.commit() #commenting because we don't want to commit before trans is evaluated by rules and fraud evaluation is created and then commit both transaction and fraud evaluation together
+        # db.refresh(db_transaction)
+        db.flush()  # Flush the session to generate the transaction ID without committing
+        fraud_result = evaluate_transaction(amount=db_transaction.amount)
+        db_fraud_evaluation = models.FraudEvaluation(
+            transaction_db_id=db_transaction.id,
+            total_score=fraud_result.total_score,
+            decision=fraud_result.decision,
+        )
+        db.add(db_fraud_evaluation)
+
+        db.commit()  # Commit both the transaction and fraud evaluation together
         db.refresh(db_transaction)
+
+
     except IntegrityError:
         db.rollback()
         raise HTTPException(
@@ -39,6 +54,12 @@ def create_transaction(
             detail="Transaction ID already exists",
         )
 
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while creating the transaction: {str(e)}",
+        )
     return db_transaction
 
 
