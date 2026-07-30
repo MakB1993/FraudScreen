@@ -1,23 +1,37 @@
-from backend.schemas import RuleResult,FraudEvaluation
+from backend.schemas import RuleResult,FraudEvaluationResult
 from backend.rules.high_amount_rule import evaluate_high_amount
+from backend.rules.velocity_rule import evaluate_ip_velocity
+from backend.rules.device_velocity_rule import evaluate_device_velocity
+from sqlalchemy.orm import Session
 
-def evaluate_transaction(amount: float,) -> FraudEvaluation:
+def evaluate_transaction(db: Session,
+                        amount: float,
+                        ip_address: str, 
+                        ip_transaction_count: int,
+                        device_id: str,
+                        device_transaction_count: int) -> FraudEvaluationResult:
     """
     Evaluate a transaction against all defined rules.
 
     Args:
         amount (float): The transaction amount.
+        ip_address (str): The IP address of the transaction.
+        ip_transaction_count (int): The number of transactions from the IP address.
+        device_id (str): The device ID of the transaction.
+        device_transaction_count (int): The number of transactions from the device ID.
 
     Returns:
-        FraudEvaluation: An evaluation of the transaction based on all defined rules.
+        FraudEvaluationResult: An evaluation of the transaction based on all defined rules.
     """
-    rules=[evaluate_high_amount,]
-    results: list[RuleResult] = []   # Add more rule functions here as needed
-    for rule in rules:
-        result = rule(amount)
-        results.append(result)
+
+
+    results: list[RuleResult] = [
+        evaluate_high_amount(db=db, amount=amount),
+        evaluate_ip_velocity(db=db, ip_address=ip_address, ip_transaction_count=ip_transaction_count),
+        evaluate_device_velocity(db=db, device_id=device_id, device_transaction_count=device_transaction_count)    
+    ]   # Add more rule functions here as needed
     
-    # Add more rule evaluations here as needed
+    
 
     total_score = sum(result.score for result in results)
     if total_score >= 70:
@@ -27,7 +41,7 @@ def evaluate_transaction(amount: float,) -> FraudEvaluation:
     else:
         decision = "APPROVE"
 
-    return FraudEvaluation(
+    return FraudEvaluationResult(
         total_score=total_score,
         decision=decision,
         rule_results=results

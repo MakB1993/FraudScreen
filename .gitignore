@@ -1,20 +1,24 @@
-# Virtual environment
+# Python virtual environments
 venv/
+.venv/
 
 # Python cache
 __pycache__/
+*.py[cod]
 
-# Compiled Python files
-*.pyc
-
-# SQLite database (temporary for now)
+# SQLite databases
 *.db
+*.sqlite3
 
 # Environment variables
 .env
 
-# VS Code settings
+# VS Code
 .vscode/
 
 # macOS
 .DS_Store
+
+# Future React frontend
+frontend/node_modules/
+frontend/dist/

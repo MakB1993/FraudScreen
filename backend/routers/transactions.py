@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.database import get_db
-from backend.schemas import TransactionCreate, TransactionResponse, TransactionUpdate
+from backend.schemas import TransactionCreate, TransactionResponse, TransactionUpdate, FraudEvaluationResponse
 
-from backend.services.fraud_engine import evaluate_transaction
+from backend.services.fraud_evaluation_service import create_fraud_evaluation
 
 router = APIRouter(
     prefix="/transactions",
@@ -20,11 +20,17 @@ router = APIRouter(
     status_code=status.HTTP_201_CREATED,
 )
 def create_transaction(
-    transaction: TransactionCreate,
+    transaction: TransactionCreate, #creating an object of pydantic model TransactionCreate and passing the values from request body to it
     db: Session = Depends(get_db),
 ):
-    db_transaction = models.Transaction(
+    db_transaction = models.Transaction( #creating an object for sqlalchemy model Transaction and passing the values from pydantic model TransactionCreate to it
         transaction_id=transaction.transaction_id,
+        customer_id=transaction.customer_id,
+        email=transaction.email,
+        card_bin=transaction.card_bin,
+        card_last_four=transaction.card_last_four,
+        ip_address=transaction.ip_address,
+        device_id=transaction.device_id,
         amount=transaction.amount,
         currency=transaction.currency,
     )
@@ -34,16 +40,11 @@ def create_transaction(
     try:
         # db.commit() #commenting because we don't want to commit before trans is evaluated by rules and fraud evaluation is created and then commit both transaction and fraud evaluation together
         # db.refresh(db_transaction)
-        db.flush()  # Flush the session to generate the transaction ID without committing
-        fraud_result = evaluate_transaction(amount=db_transaction.amount)
-        db_fraud_evaluation = models.FraudEvaluation(
-            transaction_db_id=db_transaction.id,
-            total_score=fraud_result.total_score,
-            decision=fraud_result.decision,
-        )
-        db.add(db_fraud_evaluation)
+        db.flush()
+          # Flush the session to generate the transaction ID without committing
+        create_fraud_evaluation(db=db, db_transaction=db_transaction)
 
-        db.commit()  # Commit both the transaction and fraud evaluation together
+        db.commit()  # Commit both the transaction,fraud evaluation and rule evaluations together
         db.refresh(db_transaction)
 
 
@@ -54,11 +55,11 @@ def create_transaction(
             detail="Transaction ID already exists",
         )
 
-    except Exception as e:
+    except Exception:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while creating the transaction: {str(e)}",
+            detail="An error occurred while creating the transaction",
         )
     return db_transaction
 
@@ -129,8 +130,44 @@ def get_transaction(
 
     return db_transaction
 
+@router.get(
+    "/{transaction_id}/fraud-evaluation",
+    response_model=FraudEvaluationResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_fraud_evaluation(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+):
+    db_transaction = (
+        db.query(models.Transaction)
+        .filter(models.Transaction.transaction_id == transaction_id)
+        .first()
+    )
 
-@router.put(
+    if not db_transaction:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transaction with ID {transaction_id} not found",
+        )
+
+    
+    db_fraud_evaluation = (
+        db.query(models.FraudEvaluation)
+        .filter(models.FraudEvaluation.transaction_db_id == db_transaction.id)
+        .order_by(models.FraudEvaluation.id.desc())  # Get the latest fraud evaluation
+        .first()
+    )
+
+    if not db_fraud_evaluation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fraud evaluation for transaction ID {transaction_id} not found",
+        )
+
+    return db_fraud_evaluation
+
+@router.put( # TODO: Re-run fraud evaluation when fraud-relevant fields are updated.
     "/{transaction_id}",
     response_model=TransactionResponse,
     status_code=status.HTTP_200_OK,
