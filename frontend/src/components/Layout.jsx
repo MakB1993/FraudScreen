@@ -1,3 +1,5 @@
+import { Outlet } from "react-router-dom";
+
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 
@@ -12,8 +14,7 @@ function Layout() {
         </div>
 
         <main className="main-content">
-          <h2>Dashboard</h2>
-          <p>Welcome to FraudScreen.</p>
+          <Outlet />
         </main>
       </div>
     </div>
