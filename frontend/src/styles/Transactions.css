@@ -1,0 +1,96 @@
+.table-container {
+  padding: 24px;
+}
+
+.transaction-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background: white;
+}
+
+.transaction-table th,
+.transaction-table td {
+  border: 1px solid #ddd;
+  padding: 12px;
+  text-align: left;
+}
+
+.transaction-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+}
+
+.transaction-table tbody tr:nth-child(even) {
+  background-color: #f1f5f9;
+}
+
+.transaction-table tbody tr:nth-child(odd) {
+  background-color: #ffffff;
+}
+
+.transaction-table tbody tr:hover {
+  background-color: #dbeafe;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.pagination button {
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.fraud-details {
+  margin-top: 30px;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.fraud-details table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.fraud-details th,
+.fraud-details td {
+  border: 1px solid #ddd;
+  padding: 10px;
+}
+
+.fraud-details th {
+  background: #f5f5f5;
+}
+
+.decision {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.decision.approve {
+  color: #166534;
+  background-color: #dcfce7;
+}
+
+.decision.review {
+  color: #854d0e;
+  background-color: #fef9c3;
+}
+
+.decision.reject {
+  color: #991b1b;
+  background-color: #fee2e2;
+}
