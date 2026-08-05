@@ -60,8 +60,19 @@ def update_rule_with_key(
         )
     updated_rule = rule_update.model_dump(exclude_unset=True)
 
-    return update_rule(db=db, rule=existing_rule, update_data=updated_rule)
+    try:
+        return update_rule(
+            db=db,
+            rule=existing_rule,
+            update_data=updated_rule,
+        )
 
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        )
+    
 #Adding rules/test endpoint
 @router.post(
     "/test",

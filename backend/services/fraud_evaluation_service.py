@@ -39,7 +39,10 @@ def get_all_fraud_evaluations(
         limit: int,
         offset: int,
 ) -> list[models.FraudEvaluation]:
-    query = db.query(models.FraudEvaluation).options(selectinload(models.FraudEvaluation.rule_evaluations))
+    query = db.query(models.FraudEvaluation).options(
+        selectinload(models.FraudEvaluation.rule_evaluations),
+        selectinload(models.FraudEvaluation.transaction)
+        )
     if decision:
         query = query.filter(models.FraudEvaluation.decision == decision)
     if min_score is not None:
@@ -59,7 +62,8 @@ def get_fraud_evaluation(
 ) -> models.FraudEvaluation | None:
     return (
         db.query(models.FraudEvaluation)
-        .options(selectinload(models.FraudEvaluation.rule_evaluations))
+        .options(selectinload(models.FraudEvaluation.rule_evaluations),
+                 selectinload(models.FraudEvaluation.transaction))
         .filter(models.FraudEvaluation.id==id)
         .first()
     )

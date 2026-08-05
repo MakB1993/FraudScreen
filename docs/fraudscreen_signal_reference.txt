@@ -1,0 +1,96 @@
+FraudScreen Signal Reference
+============================
+
+CORE / VELOCITY
+amount
+- Current transaction amount.
+
+ip_velocity
+- Number of transactions from the same IP within the configured IP window.
+
+device_velocity
+- Number of transactions from the same device within the configured device window.
+
+card_velocity
+- Number of transactions using the same card_fingerprint within the configured card window.
+
+customer_velocity
+- Number of transactions by the same customer within the configured customer window.
+
+session_velocity
+- Number of transactions in the same session within the configured session window.
+- Returns 0 when session_id is unavailable.
+
+
+CUSTOMER HISTORY / NEWNESS
+new_device
+- True when this customer has never used the current device before the transaction.
+
+new_card
+- True when this customer has never used the current card_fingerprint before the transaction.
+
+new_ip_for_customer
+- True when this customer has never used the current IP address before the transaction.
+
+new_ip_country_for_customer
+- True when this customer has never previously transacted from the current IP country.
+
+new_card_country_for_customer
+- True when this customer has never previously used a card from the current card country.
+
+
+RELATIONSHIP / DIVERSITY
+distinct_customers_per_device
+- Number of unique customers using the current device within the configured relationship window.
+
+distinct_cards_per_device
+- Number of unique card_fingerprints used on the current device within the relationship window.
+
+distinct_customers_per_ip
+- Number of unique customers using the current IP within the relationship window.
+
+distinct_cards_per_ip
+- Number of unique card_fingerprints used from the current IP within the relationship window.
+
+distinct_cards_per_session
+- Number of unique cards used in the current session within the relationship window.
+
+distinct_devices_per_customer
+- Number of unique devices used by the current customer within the relationship window.
+
+distinct_ips_per_customer
+- Number of unique IP addresses used by the current customer within the relationship window.
+
+
+COUNTRY / LOCATION
+card_ip_country_mismatch
+- True when card_country and ip_country are both available and are different.
+
+distinct_ip_countries_per_customer
+- Number of unique IP countries used by the customer within the configured country window.
+
+
+DECLINE / CARD-TESTING
+customer_decline_velocity
+- Number of DECLINED transactions by the customer within the decline window.
+
+card_decline_velocity
+- Number of DECLINED transactions using the same card_fingerprint within the decline window.
+
+ip_decline_velocity
+- Number of DECLINED transactions from the same IP within the decline window.
+
+declines_per_session
+- Number of DECLINED transactions in the current session within the decline window.
+
+authorized_after_declines_in_session
+- True when the current transaction is AUTHORIZED and an earlier DECLINED transaction exists in the same session within the decline window.
+
+
+NOTES
+- card_fingerprint is used for card identity, not card_last_four.
+- Historical newness signals use transactions strictly before reference_time.
+- Velocity/count signals use a configured time window relative to reference_time.
+- reference_time prevents historical/synthetic evaluations from seeing future transactions.
+- Signals describe facts. Rules decide whether those facts are suspicious and how much score to add.
+- Missing session_id currently produces 0/False for session-based signals.

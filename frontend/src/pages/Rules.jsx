@@ -27,6 +27,7 @@ function Rules() {
     threshold_value: 0,
     score: 0,
     enabled: false,
+    window_minutes: null,
   });
 
   const [loading, setLoading] = useState(true);
@@ -73,6 +74,7 @@ function Rules() {
       threshold_value: rule.threshold_value,
       score: rule.score,
       enabled: rule.enabled,
+      window_minutes: rule.window_minutes,
     });
   }
 
@@ -203,6 +205,26 @@ function Rules() {
               })
             }
           />
+
+          {selectedRule.rule_key !== "high_amount" && (
+            <>
+              <label>Window Minutes</label>
+
+              <input
+                type="number"
+                value={editForm.window_minutes ?? ""}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    window_minutes:
+                      e.target.value === ""
+                        ? null
+                        : Number(e.target.value),
+                  })
+                }
+              />
+            </>
+          )}
 
           <label>
             <input

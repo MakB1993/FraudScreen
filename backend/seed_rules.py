@@ -10,6 +10,8 @@ def seed_rules() -> None:
             {
                 "rule_key": "high_amount",
                 "rule_name": "High Amount Rule",
+                "signal_key": "amount",
+                "operator": ">",
                 "enabled": True,
                 "threshold_value": 10000,
                 "score": 50,
@@ -18,6 +20,8 @@ def seed_rules() -> None:
             {
                 "rule_key": "ip_velocity",
                 "rule_name": "IP Velocity Rule",
+                "signal_key": "ip_velocity",
+                "operator": ">",
                 "enabled": True,
                 "threshold_value": 3,
                 "score": 40,
@@ -26,6 +30,8 @@ def seed_rules() -> None:
             {
                 "rule_key": "device_velocity",
                 "rule_name": "Device Velocity Rule",
+                "signal_key": "device_velocity",
+                "operator": ">",
                 "enabled": True,
                 "threshold_value": 3,
                 "score": 40,
@@ -41,10 +47,13 @@ def seed_rules() -> None:
             )
 
             if existing_rule:
-                print(f"Skipped: {rule_data['rule_key']}")
+                existing_rule.signal_key = rule_data["signal_key"]
+                existing_rule.operator = rule_data["operator"]
+
+                print(f"Updated dynamic fields: {rule_data['rule_key']}")
                 continue
 
-            db.add(models.FraudRule(**rule_data))
+            db.add(models.FraudRule(**rule_data))  #unpacking dictionary with **
             print(f"Added: {rule_data['rule_key']}")
 
         db.commit()

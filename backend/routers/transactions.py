@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from datetime import datetime, date, timedelta
 
 from backend import models
 from backend.database import get_db
 from backend.schemas import TransactionCreate, TransactionResponse, TransactionUpdate, FraudEvaluationResponse
-
+from backend.services.transaction_orchestration_service import create_transaction_service
 from backend.services.fraud_evaluation_service import create_fraud_evaluation
 
 router = APIRouter(
@@ -23,28 +24,13 @@ def create_transaction(
     transaction: TransactionCreate, #creating an object of pydantic model TransactionCreate and passing the values from request body to it
     db: Session = Depends(get_db),
 ):
-    db_transaction = models.Transaction( #creating an object for sqlalchemy model Transaction and passing the values from pydantic model TransactionCreate to it
-        transaction_id=transaction.transaction_id,
-        customer_id=transaction.customer_id,
-        email=transaction.email,
-        card_bin=transaction.card_bin,
-        card_last_four=transaction.card_last_four,
-        ip_address=transaction.ip_address,
-        device_id=transaction.device_id,
-        amount=transaction.amount,
-        currency=transaction.currency,
-    )
-
-    db.add(db_transaction)
-
     try:
-        # db.commit() #commenting because we don't want to commit before trans is evaluated by rules and fraud evaluation is created and then commit both transaction and fraud evaluation together
-        # db.refresh(db_transaction)
-        db.flush()
-          # Flush the session to generate the transaction ID without committing
-        create_fraud_evaluation(db=db, db_transaction=db_transaction)
+        db_transaction = create_transaction_service(
+            db=db,
+            transaction=transaction,
+        )
 
-        db.commit()  # Commit both the transaction,fraud evaluation and rule evaluations together
+        db.commit()
         db.refresh(db_transaction)
 
 
@@ -68,6 +54,26 @@ def create_transaction(
     "", response_model=list[TransactionResponse], status_code=status.HTTP_200_OK
 )
 def list_transactions(
+    transaction_id: str | None = Query(
+        None,
+        description="Filter by transaction ID",
+    ),
+    customer_id: str | None = Query(
+        None,
+        description="Filter transactions by customer ID",
+    ),
+    email: str | None = Query(
+        None,
+        description="Filter transactions by email",
+    ),
+    ip_address: str | None = Query(
+        None,
+        description="Filter transactions by IP address",
+    ),
+    device_id: str | None = Query(
+            None,
+            description="Filter transactions by IP address",
+        ),
     currency: str | None = Query(None, description="Filter transactions by currency"),
     min_amount: float | None = Query(
         None,
@@ -78,6 +84,14 @@ def list_transactions(
         description="Filter transactions with amount less than or equal to this value",
     ),
     db: Session = Depends(get_db),
+    start_date: datetime | None = Query(
+        None,
+        description="Filter transactions from this date",
+    ),
+    end_date: datetime | None = Query(
+        None,
+        description="Filter transactions up to this date",
+    ),
     limit: int = Query(
         20, ge=1, le=100, description="Number of transactions to return"
     ),
@@ -89,8 +103,35 @@ def list_transactions(
             detail="min_amount cannot be greater than max_amount",
         )
 
+    if start_date is not None and end_date is not None and start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="start_date cannot be greater than end_date",
+        )
+
     query = db.query(models.Transaction)
 
+    if transaction_id:
+        query = query.filter(
+            models.Transaction.transaction_id == transaction_id
+        )
+
+    if customer_id:
+        query = query.filter(
+            models.Transaction.customer_id == customer_id
+        )
+    if email:
+        query = query.filter(
+            models.Transaction.email.ilike(f"%{email}%")
+        )
+    if ip_address:
+        query = query.filter(
+            models.Transaction.ip_address == ip_address
+        )
+    if device_id:
+        query = query.filter(
+            models.Transaction.ip_address == device_id
+        )
     if currency:
         query = query.filter(models.Transaction.currency == currency)
     if (
@@ -99,6 +140,14 @@ def list_transactions(
         query = query.filter(models.Transaction.amount >= min_amount)
     if max_amount is not None:
         query = query.filter(models.Transaction.amount <= max_amount)
+    if start_date is not None:
+        query = query.filter(
+            models.Transaction.created_at >= datetime.combine(start_date,datetime.min.time())
+        )
+    if end_date is not None:
+        query = query.filter(
+            models.Transaction.created_at <= datetime.combine(end_date,datetime.min.time())
+        )
     transactions = (
         query.order_by(models.Transaction.id.desc()).offset(offset).limit(limit).all()
     )

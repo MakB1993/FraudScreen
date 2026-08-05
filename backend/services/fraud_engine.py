@@ -2,14 +2,15 @@ from backend.schemas import RuleResult,FraudEvaluationResult
 from backend.rules.high_amount_rule import evaluate_high_amount
 from backend.rules.velocity_rule import evaluate_ip_velocity
 from backend.rules.device_velocity_rule import evaluate_device_velocity
+from backend.signals.signal_context import SignalContext
 from sqlalchemy.orm import Session
 
-def evaluate_transaction(db: Session,
-                        amount: float,
-                        ip_address: str, 
-                        ip_transaction_count: int,
-                        device_id: str,
-                        device_transaction_count: int) -> FraudEvaluationResult:
+def evaluate_transaction(
+        db: Session,
+        signal_context: SignalContext,
+        ip_address: str,
+        device_id: str,
+    ) -> FraudEvaluationResult:
     """
     Evaluate a transaction against all defined rules.
 
@@ -26,9 +27,9 @@ def evaluate_transaction(db: Session,
 
 
     results: list[RuleResult] = [
-        evaluate_high_amount(db=db, amount=amount),
-        evaluate_ip_velocity(db=db, ip_address=ip_address, ip_transaction_count=ip_transaction_count),
-        evaluate_device_velocity(db=db, device_id=device_id, device_transaction_count=device_transaction_count)    
+        evaluate_high_amount(db=db, amount=signal_context.amount),
+        evaluate_ip_velocity(db=db, ip_address=ip_address, ip_transaction_count=signal_context.ip_velocity),
+        evaluate_device_velocity(db=db, device_id=device_id, device_transaction_count=signal_context.device_velocity)    
     ]   # Add more rule functions here as needed
     
     
@@ -36,7 +37,7 @@ def evaluate_transaction(db: Session,
     total_score = sum(result.score for result in results)
     if total_score >= 70:
         decision = "REJECT"
-    elif total_score >= 30:
+    elif total_score >= 45:
         decision = "REVIEW"
     else:
         decision = "APPROVE"

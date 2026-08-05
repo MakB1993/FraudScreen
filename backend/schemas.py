@@ -1,15 +1,40 @@
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal
+
+from pydantic import field_validator
+from backend.signals.signal_registry import AVAILABLE_SIGNALS
+
+RuleOperator = Literal[
+    ">",
+    ">=",
+    "<",
+    "<=",
+    "==",
+    "!=",
+]
 
 class TransactionCreate(BaseModel):
     transaction_id: str
+    transaction_type: str | None = None
+    transaction_status: str
+
     customer_id: str
     email: str
+
+    card_fingerprint: str
     card_bin: str
     card_last_four: str
+    payment_method: str
+    card_country: str | None = None
+
     ip_address: str
+    ip_country: str | None = None
     device_id: str
+    user_agent: str | None = None
+    session_id: str | None = None
+
     amount: float
     currency: str
 
@@ -20,12 +45,24 @@ class TransactionResponse(BaseModel):
 
     id: int
     transaction_id: str
+    transaction_type: str | None
+    transaction_status: str
+
     customer_id: str
     email: str
+
+    card_fingerprint: str
     card_bin: str
     card_last_four: str
+    payment_method: str
+    card_country: str | None
+
     ip_address: str
+    ip_country: str | None
     device_id: str
+    user_agent: str | None
+    session_id: str | None
+
     amount: float
     currency: str
     created_at: datetime
@@ -64,6 +101,7 @@ class FraudEvaluationResponse(BaseModel):
 
     id: int
     transaction_db_id: int
+    transaction: TransactionResponse
     total_score: int
     decision: str
     rule_evaluations: list[RuleEvaluationResponse]
@@ -84,13 +122,40 @@ class FraudRuleResponse(BaseModel):
     id: int
     rule_key: str
     rule_name: str
+    signal_key: str | None
+    operator: str | None
     enabled: bool
     threshold_value: int
     score: int
     window_minutes: int | None = None
 
 class FraudRuleUpdate(BaseModel):
+    signal_key: str | None = None
+    operator: RuleOperator | None = None
     enabled: bool | None = None
     threshold_value: int | None = Field(default= None, gt= 0)
     score: int | None = Field(default= None, ge= 0)
     window_minutes: int | None = Field(default= None, gt= 0)
+
+    @field_validator("signal_key")  # Validate signal_key against the Signal Registry before the request reaches the router.
+    @classmethod
+    def validate_signal_key(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+
+        if value not in AVAILABLE_SIGNALS:
+            raise ValueError(
+                f"Unknown signal '{value}'. Refer to the Signal Registry."
+            )
+
+        return value
+
+class DashboardSummary(BaseModel):
+    total_transactions: int
+    approved: int
+    review: int
+    rejected: int
+
+class TransactionsOverTimeItem(BaseModel):
+    date: str
+    count: int

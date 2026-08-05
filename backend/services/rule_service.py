@@ -40,6 +40,27 @@ def update_rule(
     #     rule.window_minutes = window_minutes
     #instead of above commented code, we can use setattr to update the attributes dynamically based on the keys in the update_data dictionary. This way, we can avoid writing multiple if statements for each attribute.
 
+    if rule.rule_key == "high_amount":
+        if (
+            "window_minutes" in update_data
+            and update_data["window_minutes"] is not None
+        ):
+            raise ValueError(
+                "High Amount Rule does not support window_minutes."
+            )
+
+    if rule.rule_key in {"ip_velocity", "device_velocity"}:
+        if (
+            "window_minutes" in update_data
+            and update_data["window_minutes"] is None
+        ):
+            raise ValueError(
+                "Velocity rules require window_minutes."
+            )
+
+    for field, value in update_data.items():
+        setattr(rule, field, value)
+
 
     for key, value in update_data.items():
         setattr(rule, key, value)
