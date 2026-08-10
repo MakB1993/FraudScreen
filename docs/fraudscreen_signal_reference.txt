@@ -1,6 +1,14 @@
 FraudScreen Signal Reference
 ============================
 
+| Python | JavaScript |
+| ------ | ---------- |
+| `list` | `Array`    |
+| `dict` | `Object`   |
+| `str`  | `string`   |
+| `bool` | `boolean`  |
+| `None` | `null`     |
+
 CORE / VELOCITY
 amount
 - Current transaction amount.

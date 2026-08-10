@@ -15,26 +15,26 @@ def get_signal_value(
 def evaluate_condition(
     signal_value: int | float | bool,
     operator: str,
-    threshold_value: int | float,
+    comparison_value: int | float |bool,
 ) -> bool:
 
     if operator == ">":
-        return signal_value > threshold_value
+        return signal_value > comparison_value
 
     if operator == ">=":
-        return signal_value >= threshold_value
+        return signal_value >= comparison_value
 
     if operator == "<":
-        return signal_value < threshold_value
+        return signal_value < comparison_value
 
     if operator == "<=":
-        return signal_value <= threshold_value
+        return signal_value <= comparison_value
 
     if operator == "==":
-        return signal_value == threshold_value
+        return signal_value == comparison_value
 
     if operator == "!=":
-        return signal_value != threshold_value
+        return signal_value != comparison_value
 
     raise ValueError(f"Unsupported operator: {operator}")
 
@@ -58,17 +58,23 @@ def evaluate_dynamic_rule(
         signal_key=rule.signal_key,
     )
 
+    comparison_value = (
+        rule.comparison_value
+        if rule.comparison_value is not None
+        else rule.threshold_value
+    )
+
     triggered = evaluate_condition(
         signal_value=signal_value,
         operator=rule.operator,
-        threshold_value=rule.threshold_value,
+        comparison_value=comparison_value,
     )
 
     score = rule.score if triggered else 0
 
     reason = (
         f"{rule.signal_key} value {signal_value} "
-        f"{rule.operator} {rule.threshold_value}"
+        f"{rule.operator} {comparison_value}"
     )
 
     return RuleResult(
@@ -98,54 +104,43 @@ def evaluate_dynamic_rules(
 
     return results
 
-if __name__ == "__main__":
-    from backend.database import SessionLocal
+# if __name__ == "__main__":
+#     from types import SimpleNamespace #SimpleNamespace is a small built-in Python utility that lets you quickly create an object with attributes
+                                        
+#     from backend.database import SessionLocal
 
-    db = SessionLocal()
+#     db = SessionLocal()
 
-    try:
-        rules = db.query(models.FraudRule).all()
+#     try:
+#         rule = (
+#             db.query(models.FraudRule)
+#             .filter(models.FraudRule.rule_key == "high_amount")
+#             .first()
+#         )
 
-        signal_context = SignalContext(
-            amount=12000,
-            ip_velocity=5,
-            device_velocity=1,
-            card_velocity=1,
-            new_device=False,
-            new_card=False,
-            new_ip_for_customer=False,
-            distinct_customers_per_device=1,
-            distinct_cards_per_device=1,
-            distinct_customers_per_ip=1,
-            distinct_cards_per_ip=1,
-            customer_velocity=1,
-            session_velocity=1,
-            card_ip_country_mismatch=False,
-            new_ip_country_for_customer=False,
-            new_card_country_for_customer=False,
-            distinct_ip_countries_per_customer=1,
-            customer_decline_velocity=0,
-            card_decline_velocity=0,
-            ip_decline_velocity=0,
-            distinct_cards_per_session=1,
-            declines_per_session=0,
-            authorized_after_declines_in_session=False,
-            distinct_devices_per_customer=1,
-            distinct_ips_per_customer=1,
-        )
+#         if rule is None:
+#             raise ValueError("Rule not found")
 
-        results = evaluate_dynamic_rules(
-            rules=rules,
-            signal_context=signal_context,
-        )
+#         print("Rule configuration:")
+#         print("rule_key:", rule.rule_key)
+#         print("signal_key:", rule.signal_key)
+#         print("operator:", rule.operator)
+#         print("comparison_value:", rule.comparison_value)
+#         print("score:", rule.score)
 
-        total_score = 0
+#         signal_context = SimpleNamespace( #otw we would have to input all the attributes of SignalContext class, but with SimpleNamespace we can create an object with only the attributes we need for testing
+#             new_device=True,
+#         )
 
-        for result in results:
-            print(result)
-            total_score += result.score
+#         result = evaluate_dynamic_rule(
+#             rule=rule,
+#             signal_context=signal_context,
+#         )
 
-        print(f"Total score: {total_score}")
+#         print("\nDynamic rule result:")
+#         print("triggered:", result.triggered)
+#         print("score:", result.score)
+#         print("reason:", result.reason)
 
-    finally:
-        db.close()
+#     finally:
+#         db.close()

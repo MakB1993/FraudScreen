@@ -5,8 +5,11 @@
  * @property {string} rule_name
  * @property {boolean} enabled
  * @property {number} threshold_value
+ * @property {number|boolean|null} comparison_value
  * @property {number} score
  * @property {number|null} window_minutes
+ * @property {string|null} signal_key
+ * @property {string|null} operator
  */
 
 import { useEffect, useState } from "react";
@@ -15,16 +18,33 @@ import { useEffect, useState } from "react";
 import "../styles/Rules.css"
 import { getRules, updateRule } from "../services/rulesApi";
 
+import { getSignals } from "../services/signalsApi";
+
 function Rules() {
   /** @type {[FraudRule[], Function]} */
   const [rules, setRules] = useState([]);
+  const [signals, setSignals] = useState({});
+  const [showCreateModal, setShowCreateModal] = useState(false);
   
   const [selectedRule, setSelectedRule] = useState(
     /** @type {FraudRule | null} */ (null)
   );
 
+  const [createForm, setCreateForm] = useState({
+    rule_name: "",
+    signal_key: "",
+    operator: "",
+    comparison_value: null,
+    score: 0,
+    window_minutes: null,
+    enabled: true,
+  });
+
   const [editForm, setEditForm] = useState({
+    signal_key: "",
+    operator: "",
     threshold_value: 0,
+    comparison_value: null,
     score: 0,
     enabled: false,
     window_minutes: null,
@@ -34,10 +54,20 @@ function Rules() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
+
   useEffect(() => {
+
+  async function fetchSignals() {
+    try {
+      const data = await getSignals();
+      setSignals(data);
+    } catch (error) {
+      console.error("Failed to fetch signals:", error);
+    }
+  }
+
   async function fetchRules() {
     
-
     try {
       setLoading(true);
       setError("");
@@ -60,10 +90,10 @@ function Rules() {
   }
 
   fetchRules();
+  fetchSignals();
 }, []);
     
   
-
   /**
  * @param {FraudRule} rule
  */
@@ -71,7 +101,10 @@ function Rules() {
     setSelectedRule(rule);
 
     setEditForm({
+      signal_key: rule.signal_key || "",
+      operator: rule.operator || "",
       threshold_value: rule.threshold_value,
+      comparison_value: rule.comparison_value,
       score: rule.score,
       enabled: rule.enabled,
       window_minutes: rule.window_minutes,
@@ -83,17 +116,33 @@ function Rules() {
     if (!selectedRule) return;
     setSaving(true);
     try{
-    const updatedRule = await updateRule(selectedRule.rule_key,editForm);
+      const selectedSignal = signals[editForm.signal_key];
 
-    setRules((currentRules) =>
-      currentRules.map((rule) =>
-        rule.rule_key === updatedRule.rule_key
-          ? updatedRule
-          : rule
-      )
-    );
+      if (
+        !selectedSignal?.allowed_operators?.includes(editForm.operator)
+      ) {
+        alert("Please select a valid operator for the selected signal.");
+        setSaving(false);
+        return;
+      }
 
-    setSelectedRule(null);
+      const payload = {
+        ...editForm,
+        window_minutes: selectedSignal?.uses_window
+          ? editForm.window_minutes
+          : null,
+      };
+      const updatedRule = await updateRule(selectedRule.rule_key, payload);
+
+      setRules((currentRules) =>
+        currentRules.map((rule) =>
+          rule.rule_key === updatedRule.rule_key
+            ? updatedRule
+            : rule
+        )
+      );
+
+      setSelectedRule(null);
 
     }catch (error) {
       console.error(error);
@@ -123,9 +172,14 @@ function Rules() {
     return <p>No rules found.</p>;
   }
 
+  const selectedSignalDefinition = signals[editForm.signal_key];
+  const selectedCreateSignal = signals[createForm.signal_key];
+
   return (
-  <div className="table-container">
-    <h2>Rules</h2>
+  <>
+    <button onClick={() => setShowCreateModal(true)}>
+      Create Rule
+    </button>
 
     <table className="rules-table">
       <thead>
@@ -147,19 +201,29 @@ function Rules() {
             <td>{rule.id}</td>
             <td>{rule.rule_name}</td>
             <td>{rule.rule_key}</td>
+
             <td>
-              <span className={rule.enabled ? "status enabled" : "status disabled"}
+              <span
+                className={
+                  rule.enabled
+                    ? "status enabled"
+                    : "status disabled"
+                }
               >
-              {rule.enabled ? "Enabled" : "Disabled"}
+                {rule.enabled ? "Enabled" : "Disabled"}
               </span>
             </td>
+
             <td>{rule.threshold_value}</td>
+
             <td>{rule.score}</td>
+
             <td>
               {rule.window_minutes != null
                 ? `${rule.window_minutes} minutes`
                 : "Not applicable"}
             </td>
+
             <td>
               <button onClick={() => handleEdit(rule)}>
                 Edit
@@ -169,28 +233,301 @@ function Rules() {
         ))}
       </tbody>
     </table>
+
+    {/* =========================
+        CREATE RULE MODAL
+       ========================= */}
+
+    {showCreateModal && (
+      <div className="modal-overlay">
+        <div className="edit-modal">
+          <h3>Create Rule</h3>
+
+          <label>Rule Name</label>
+
+          <input
+            type="text"
+            value={createForm.rule_name}
+            onChange={(e) =>
+              setCreateForm({
+                ...createForm,
+                rule_name: e.target.value,
+              })
+            }
+          />
+
+          <label>Signal</label>
+
+          <select
+            value={createForm.signal_key}
+            onChange={(e) =>
+              setCreateForm({
+                ...createForm,
+                signal_key: e.target.value,
+              })
+            }
+          >
+            <option value="">Select signal</option>
+
+            {Object.entries(signals).map(
+              ([signalKey, definition]) => (
+                <option
+                  key={signalKey}
+                  value={signalKey}
+                >
+                  {definition.display_name}
+                </option>
+              )
+            )}
+          </select>
+
+          <label>Operator</label>
+
+          <select
+            value={createForm.operator}
+            onChange={(e) =>
+              setCreateForm({
+                ...createForm,
+                operator: e.target.value,
+              })
+            }
+            disabled={!selectedCreateSignal}
+          >
+            <option value="">Select operator</option>
+
+            {selectedCreateSignal?.allowed_operators?.map(
+              (operator) => (
+                <option
+                  key={operator}
+                  value={operator}
+                >
+                  {operator}
+                </option>
+              )
+            )}
+          </select>
+
+          {selectedCreateSignal && (
+            <>
+              <label>Comparison Value</label>
+
+              {selectedCreateSignal.data_type ===
+              "boolean" ? (
+                <select
+                  value={
+                    createForm.comparison_value === null
+                      ? ""
+                      : String(
+                          createForm.comparison_value
+                        )
+                  }
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      comparison_value:
+                        e.target.value === ""
+                          ? null
+                          : e.target.value === "true",
+                    })
+                  }
+                >
+                  <option value="">
+                    Select value
+                  </option>
+
+                  <option value="true">
+                    True
+                  </option>
+
+                  <option value="false">
+                    False
+                  </option>
+                </select>
+              ) : (
+                <input
+                  type="number"
+                  value={
+                    createForm.comparison_value ?? ""
+                  }
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      comparison_value:
+                        e.target.value === ""
+                          ? null
+                          : Number(e.target.value),
+                    })
+                  }
+                />
+              )}
+
+              {selectedCreateSignal.uses_window && (
+                <>
+                  <label>
+                    Window Minutes
+                  </label>
+
+                  <input
+                    type="number"
+                    min="1"
+                    value={
+                      createForm.window_minutes ?? ""
+                    }
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        window_minutes:
+                          e.target.value === ""
+                            ? null
+                            : Number(e.target.value),
+                      })
+                    }
+                  />
+                </>
+              )}
+            </>
+          )}
+
+          <button
+            onClick={() =>
+              setShowCreateModal(false)
+            }
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
+
+    {/* =========================
+        EDIT RULE MODAL
+       ========================= */}
+
     {selectedRule && (
       <div className="modal-overlay">
         <div className="edit-modal">
           <h3>Edit Rule</h3>
 
           <p>
-            <strong>{selectedRule.rule_name}</strong>
+            <strong>
+              {selectedRule.rule_name}
+            </strong>
           </p>
 
           <label>
-            Threshold
+            Signal
           </label>
-          <input
-            type="number"
-            value={editForm.threshold_value}
+
+          <select
+            value={editForm.signal_key}
             onChange={(e) =>
               setEditForm({
                 ...editForm,
-                threshold_value: Number(e.target.value),
+                signal_key: e.target.value,
               })
             }
-          />
+          >
+            <option value="">
+              Select signal
+            </option>
+
+            {Object.entries(signals).map(
+              ([signalKey, definition]) => (
+                <option
+                  key={signalKey}
+                  value={signalKey}
+                >
+                  {definition.display_name}
+                </option>
+              )
+            )}
+          </select>
+
+          <label>
+            Operator
+          </label>
+
+          <select
+            value={editForm.operator}
+            onChange={(e) =>
+              setEditForm({
+                ...editForm,
+                operator: e.target.value,
+              })
+            }
+          >
+            <option value="">
+              Select operator
+            </option>
+
+            {signals[
+              editForm.signal_key
+            ]?.allowed_operators?.map(
+              (operator) => (
+                <option
+                  key={operator}
+                  value={operator}
+                >
+                  {operator}
+                </option>
+              )
+            )}
+          </select>
+
+          <label>
+            Comparison Value
+          </label>
+
+          {selectedSignalDefinition?.data_type ===
+          "boolean" ? (
+            <select
+              value={
+                editForm.comparison_value === null
+                  ? ""
+                  : String(
+                      editForm.comparison_value
+                    )
+              }
+              onChange={(e) =>
+                setEditForm({
+                  ...editForm,
+                  comparison_value:
+                    e.target.value === ""
+                      ? null
+                      : e.target.value === "true",
+                })
+              }
+            >
+              <option value="">
+                Select value
+              </option>
+
+              <option value="true">
+                True
+              </option>
+
+              <option value="false">
+                False
+              </option>
+            </select>
+          ) : (
+            <input
+              type="number"
+              value={
+                editForm.comparison_value ?? ""
+              }
+              onChange={(e) =>
+                setEditForm({
+                  ...editForm,
+                  comparison_value:
+                    e.target.value === ""
+                      ? null
+                      : Number(e.target.value),
+                })
+              }
+            />
+          )}
+
           <label>
             Score
           </label>
@@ -206,13 +543,20 @@ function Rules() {
             }
           />
 
-          {selectedRule.rule_key !== "high_amount" && (
+          {signals[
+            editForm.signal_key
+          ]?.uses_window && (
             <>
-              <label>Window Minutes</label>
+              <label>
+                Window Minutes
+              </label>
 
               <input
                 type="number"
-                value={editForm.window_minutes ?? ""}
+                min="1"
+                value={
+                  editForm.window_minutes ?? ""
+                }
                 onChange={(e) =>
                   setEditForm({
                     ...editForm,
@@ -237,14 +581,23 @@ function Rules() {
                 })
               }
             />
+
             Enabled
           </label>
 
-          <button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving
+              ? "Saving..."
+              : "Save"}
           </button>
 
-          <button onClick={() => setSelectedRule(null)}
+          <button
+            onClick={() =>
+              setSelectedRule(null)
+            }
             disabled={saving}
           >
             Cancel
@@ -252,7 +605,7 @@ function Rules() {
         </div>
       </div>
     )}
-  </div>
+  </>
 );
 }
 

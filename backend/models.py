@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Integer, String, Float, ForeignKey
+from sqlalchemy import Boolean, Integer, String, Float, JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime,timezone
 from .database import Base
@@ -64,7 +64,8 @@ class FraudRule(Base):
     signal_key: Mapped[str | None] = mapped_column(String, nullable=True)
     operator: Mapped[str | None] = mapped_column(String, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean,default=True, nullable=False)
-    threshold_value: Mapped[int] = mapped_column(Integer, nullable=False)
+    threshold_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    comparison_value: Mapped[int | float | bool | None] = mapped_column(JSON, nullable=True)
     score: Mapped[int] = mapped_column(Integer, nullable=False)
     window_minutes: Mapped[int|None] = mapped_column(Integer, nullable=True)
     

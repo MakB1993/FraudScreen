@@ -2,14 +2,37 @@ from fastapi import APIRouter, Depends, HTTPException, status,Query
 from sqlalchemy.orm import Session
 from backend import models
 from backend.database import get_db
-from backend.schemas import FraudRuleResponse, FraudRuleUpdate, TransactionCreate, FraudEvaluationResult
-from backend.services.rule_service import get_all_rules, get_rule, update_rule
+from backend.schemas import FraudRuleResponse, FraudRuleUpdate, TransactionCreate, FraudEvaluationResult, FraudRuleCreate
+from backend.services.rule_service import get_all_rules, get_rule, update_rule, create_rule
 from backend.services.fraud_orchestration_service import run_fraud_evaluation
 
 router = APIRouter(
     prefix="/rules",
     tags=["Rules"],
 )
+
+@router.post(
+    "",
+    response_model=FraudRuleResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        400: {"description": "Invalid rule configuration"},
+    },
+)
+def create_rule_endpoint(
+    rule_data: FraudRuleCreate,
+    db: Session = Depends(get_db),
+):
+    try:
+        return create_rule(
+            db=db,
+            rule_data=rule_data,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get(
@@ -47,6 +70,9 @@ def get_rule_with_key(rule_key: str, db: Session = Depends(get_db)) -> models.Fr
     "/{rule_key}",
     response_model=FraudRuleResponse,
     status_code=status.HTTP_200_OK,
+    responses={
+        400: {"description": "Invalid rule configuration"},
+    }
 )
 def update_rule_with_key(
     rule_key: str, rule_update: FraudRuleUpdate, db: Session = Depends(get_db)

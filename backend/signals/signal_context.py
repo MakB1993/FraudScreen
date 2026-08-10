@@ -1,6 +1,15 @@
 from dataclasses import dataclass
 
-
+                    # @dataclass : if implementing metadata together
+                    # class SignalContext:
+                    #     ip_velocity: int = field(
+                    #         metadata={
+                    #             "display_name": "IP Velocity",
+                    #             "category": "Velocity",
+                    #             "uses_window": True,
+                    #             "description": "...",
+                    #         }
+                    #     )
 @dataclass
 class SignalContext:
     amount: float
