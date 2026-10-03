@@ -16,7 +16,7 @@ export async function getDashboardSummary() {
 
 export async function getTransactionsOverTime() {
   const response = await fetch(
-    "http://127.0.0.1:8000/dashboard/transactions-over-time"
+    `${BASE_URL}/dashboard/transactions-over-time`
   );
 
   if (!response.ok) {
