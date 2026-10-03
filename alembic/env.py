@@ -13,7 +13,7 @@ from backend import models
 config = context.config
 config.set_main_option(
     "sqlalchemy.url",
-    DATABASE_URL,
+    DATABASE_URL.replace("%", "%%"),
 )
 
 # Interpret the config file for Python logging.
