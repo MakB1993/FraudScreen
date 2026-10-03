@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
@@ -171,7 +171,7 @@ class DashboardSummary(BaseModel):
     rejected: int
 
 class TransactionsOverTimeItem(BaseModel):
-    date: str
+    date: date
     count: int
 
 class SignalDefinitionResponse(BaseModel): #making response explicit.
