@@ -1,5 +1,22 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+export async function createRule(ruleData) {
+  const response = await fetch(`${BASE_URL}/rules`, { // adjust URL path if your base endpoint differs
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(ruleData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Failed to create rule");
+  }
+
+  return await response.json();
+}
+
 export async function getRules() {
   const response = await fetch(`${BASE_URL}/rules`);
 

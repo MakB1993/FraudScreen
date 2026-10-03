@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 // import { data } from "react-router-dom";
 
 import "../styles/Rules.css"
-import { getRules, updateRule } from "../services/rulesApi";
+import { createRule, getRules, updateRule } from "../services/rulesApi";
 
 import { getSignals } from "../services/signalsApi";
 
@@ -50,6 +50,7 @@ function Rules() {
     window_minutes: null,
   });
 
+  const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -109,6 +110,56 @@ function Rules() {
       enabled: rule.enabled,
       window_minutes: rule.window_minutes,
     });
+  }
+
+  async function handleCreateSubmit() {
+    if (!createForm.rule_name || !createForm.signal_key || !createForm.operator) {
+      alert("Please fill in Rule Name, Signal, and Operator.");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const selectedSignal = signals[createForm.signal_key];
+
+      const payload = {
+        rule_name: createForm.rule_name,
+        signal_key: createForm.signal_key,
+        operator: createForm.operator,
+        comparison_value: createForm.comparison_value,
+        score: createForm.score,
+        window_minutes: selectedSignal?.uses_window
+          ? createForm.window_minutes
+          : null,
+        enabled: createForm.enabled,
+      };
+
+      const newRule = await createRule(payload);
+
+      // Append new rule to local rules state
+      setRules((prevRules) => [...prevRules, newRule]);
+
+      // Reset createForm state
+      setCreateForm({
+        rule_name: "",
+        signal_key: "",
+        operator: "",
+        comparison_value: null,
+        score: 0,
+        window_minutes: null,
+        enabled: true,
+      });
+
+      // Close modal
+      setShowCreateModal(false);
+    } catch (error) {
+      console.error("Failed to create rule:", error);
+      const message =
+        error instanceof Error ? error.message : "Failed to create rule";
+      alert(message);
+    } finally {
+      setCreating(false);
+    }
   }
 
   
@@ -177,9 +228,17 @@ function Rules() {
 
   return (
   <>
-    <button onClick={() => setShowCreateModal(true)}>
-      Create Rule
-    </button>
+    <div className="rules-header">
+      <h2>Rules</h2>
+      <button
+        className="add-rule-btn"
+        onClick={() => setShowCreateModal(true)}
+        data-tooltip="Add New Rule"
+        aria-label="Add New Rule"
+      >
+        +
+      </button>
+    </div>
 
     <table className="rules-table">
       <thead>
@@ -388,13 +447,47 @@ function Rules() {
             </>
           )}
 
-          <button
-            onClick={() =>
-              setShowCreateModal(false)
+          {/* Score Field */}
+          <label>Score </label>
+          <input
+            type="number"
+            min="0"
+            max="100"
+            value={createForm.score}
+            onChange={(e) =>
+              setCreateForm({
+                ...createForm,
+                score: Number(e.target.value),
+              })
             }
-          >
-            Cancel
-          </button>
+          />
+
+          {/* Enabled Checkbox */}
+          <label>
+            <input
+              type="checkbox"
+              checked={createForm.enabled}
+              onChange={(e) =>
+                setCreateForm({
+                  ...createForm,
+                  enabled: e.target.checked,
+                })
+              }
+            />
+            Enabled
+          </label>
+
+          <div style={{ marginTop: "1rem" }}>
+            <button onClick={handleCreateSubmit} disabled={creating}>
+              {creating ? "Creating..." : "Create Rule"}
+            </button>
+            <button
+              onClick={() => setShowCreateModal(false)}
+              disabled={creating}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     )}
