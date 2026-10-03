@@ -19,7 +19,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "https://fraud-screen.vercel.app"
+        "https://fraud-screen.vercel.app",
+        "https://fraudscreen.mayblabs.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
